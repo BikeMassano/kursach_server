@@ -1,0 +1,133 @@
+﻿#include <winsock.h>
+#include <iostream>
+#include <string>
+
+#pragma comment(lib, "ws2_32.lib")
+
+#ifndef SD_SEND
+#define SD_SEND 1
+#endif
+
+// Инициализация Windows Sockets DLL
+int WinSockInit()
+{
+    WORD wVersionRequested;
+    WSADATA wsaData;
+    wVersionRequested = MAKEWORD(2, 0); /* Требуется WinSock ver 2.0*/
+    printf("Запуск Winsock...\n");
+    // Проинициализируем Dll
+    if (WSAStartup(wVersionRequested, &wsaData) != 0)
+    {
+        printf("\nОшибка: Не удалось найти работоспособную Winsock Dll\n");
+        return 1;
+    }
+    // Проверка версии Dll
+    if (LOBYTE(wsaData.wVersion) != 2 || HIBYTE(wsaData.wVersion) != 0)
+    {
+        printf("\nОшибка: Не удалось найти работоспособную WinSock DLL\n");
+        WSACleanup(); // Отключение Windows Sockets DLL
+        return 1;
+    }
+    //printf(" Winsock запущен.\n");
+    return 0;
+}
+
+// Отключение Windows Sockets DLL
+void WinSockClose()
+{
+    WSACleanup();
+    printf("WinSock Closed...\n");
+}
+
+// Остановка передачи данных
+void stopTCP(SOCKET s)
+{
+    shutdown(s, SD_SEND); // Остановка передачи данных
+    closesocket(s); // Закрытие сокета
+    printf("Socket %ld closed.\n", s);
+}
+
+
+int main() {
+    setlocale(LC_ALL, "rus");
+
+    if (WinSockInit() != 0)
+    {
+        return 1;
+    }
+
+    const char* hostname = "localhost";
+
+    // Преобразование имени хоста в IP-адрес
+    hostent* host = gethostbyname(hostname);
+    if (host == NULL)
+    {
+        std::cerr << "Ошибка: Не удалось разрешить имя хоста.\n";
+        WinSockClose();
+        return 1;
+    }
+
+    SOCKET listenSocket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (listenSocket == INVALID_SOCKET) {
+        std::cerr << "socket failed: " << WSAGetLastError() << std::endl;
+        WSACleanup();
+        return 1;
+    }
+
+    sockaddr_in serverAddr;
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_addr.s_addr = *(unsigned long*)host->h_addr_list[0];
+    serverAddr.sin_port = htons(8080);
+
+    if (bind(listenSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
+        std::cerr << "bind failed: " << WSAGetLastError() << std::endl;
+        closesocket(listenSocket);
+        WSACleanup();
+        return 1;
+    }
+
+    // Вывод информации о сервере
+    sockaddr_in serverInfo;
+    int serverInfoSize = sizeof(serverInfo);
+    if (getsockname(listenSocket, (sockaddr*)&serverInfo, &serverInfoSize) == 0) {
+        char ipStr[16]; // Достаточно для IPv4 "xxx.xxx.xxx.xxx\0"
+        inet_ntoa(serverInfo.sin_addr);
+        strcpy_s(ipStr, inet_ntoa(serverInfo.sin_addr)); // inet_ntoa не потокобезопасна
+        std::cout << "Сервер запущен на IP: " << ipStr << ", порт: " << ntohs(serverInfo.sin_port) << std::endl;
+    }
+    else {
+        std::cerr << "Не удалось получить информацию о сокете сервера: " << WSAGetLastError() << std::endl;
+    }
+
+    if (listen(listenSocket, SOMAXCONN) == SOCKET_ERROR) {
+        std::cerr << "listen failed: " << WSAGetLastError() << std::endl;
+        closesocket(listenSocket);
+        WSACleanup();
+        return 1;
+    }
+
+    std::cout << "Ожидание подключений..." << std::endl;
+
+    while (true)
+    {
+        SOCKET clientSocket = accept(listenSocket, NULL, NULL);
+        if (clientSocket == INVALID_SOCKET) {
+            std::cerr << "accept failed: " << WSAGetLastError() << std::endl;
+            continue;
+        }
+
+        char buffer[1024] = "";
+        int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
+
+        std::cout << "Получено " << bytesReceived << " байт от клиента: " << buffer << std::endl;
+        std::string response = buffer;
+        send(clientSocket, response.c_str(), response.length(), 0);
+
+        closesocket(clientSocket); // **ВАЖНО: Закрываем сокет после обработки**
+    }
+
+    closesocket(listenSocket);
+    WSACleanup();
+    return 0;
+}
+
