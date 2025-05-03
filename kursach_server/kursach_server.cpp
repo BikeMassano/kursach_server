@@ -57,7 +57,7 @@ int main(int argc, char* argv[])
 
     if (argc != 2)
     {
-        std::cerr << "Использование: ping <имя_хоста>\n";
+        std::cerr << "Использование: server <имя_хоста>\n";
         return 1;
     }
 
