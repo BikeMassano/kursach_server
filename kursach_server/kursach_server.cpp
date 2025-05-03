@@ -1,4 +1,7 @@
-﻿#include <winsock.h>
+﻿#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#include <winsock2.h>
+#include <ws2tcpip.h>
+
 #include <iostream>
 #include <string>
 
@@ -48,15 +51,24 @@ void stopTCP(SOCKET s)
 }
 
 
-int main() {
+int main(int argc, char* argv[])
+{
     setlocale(LC_ALL, "rus");
+
+    if (argc != 2)
+    {
+        std::cerr << "Использование: ping <имя_хоста>\n";
+        return 1;
+    }
+
+    const char* hostname = argv[1];
 
     if (WinSockInit() != 0)
     {
         return 1;
     }
 
-    const char* hostname = "localhost";
+    char buffer[1024] = "";
 
     // Преобразование имени хоста в IP-адрес
     hostent* host = gethostbyname(hostname);
@@ -77,7 +89,7 @@ int main() {
     sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_addr.s_addr = *(unsigned long*)host->h_addr_list[0];
-    serverAddr.sin_port = htons(8080);
+    serverAddr.sin_port = htons(80);
 
     if (bind(listenSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
         std::cerr << "bind failed: " << WSAGetLastError() << std::endl;
@@ -116,14 +128,14 @@ int main() {
             continue;
         }
 
-        char buffer[1024] = "";
         int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
 
-        std::cout << "Получено " << bytesReceived << " байт от клиента: " << buffer << std::endl;
+        //std::cout << "Получено " << bytesReceived << " байт от клиента: " << buffer << std::endl;
         std::string response = buffer;
         send(clientSocket, response.c_str(), response.length(), 0);
 
-        closesocket(clientSocket); // **ВАЖНО: Закрываем сокет после обработки**
+        memset(buffer, 0, sizeof(buffer)); // Очистка буфера
+        closesocket(clientSocket);
     }
 
     closesocket(listenSocket);
