@@ -11,6 +11,8 @@
 #define SD_SEND 1
 #endif
 
+using namespace std;
+
 // Инициализация Windows Sockets DLL
 int WinSockInit()
 {
@@ -57,7 +59,7 @@ int main(int argc, char* argv[])
 
     if (argc != 2)
     {
-        std::cerr << "Использование: server <имя_хоста>\n";
+        cerr << "Использование: server <имя_хоста>\n";
         return 1;
     }
 
@@ -74,14 +76,15 @@ int main(int argc, char* argv[])
     hostent* host = gethostbyname(hostname);
     if (host == NULL)
     {
-        std::cerr << "Ошибка: Не удалось разрешить имя хоста.\n";
+        cerr << "Ошибка: Не удалось разрешить имя хоста.\n";
         WinSockClose();
         return 1;
     }
 
     SOCKET listenSocket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (listenSocket == INVALID_SOCKET) {
-        std::cerr << "socket failed: " << WSAGetLastError() << std::endl;
+    if (listenSocket == INVALID_SOCKET) 
+    {
+        cerr << "socket failed: " << WSAGetLastError() << endl;
         WSACleanup();
         return 1;
     }
@@ -91,8 +94,9 @@ int main(int argc, char* argv[])
     serverAddr.sin_addr.s_addr = *(unsigned long*)host->h_addr_list[0];
     serverAddr.sin_port = htons(80);
 
-    if (bind(listenSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
-        std::cerr << "bind failed: " << WSAGetLastError() << std::endl;
+    if (bind(listenSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) 
+    {
+        cerr << "bind failed: " << WSAGetLastError() << endl;
         closesocket(listenSocket);
         WSACleanup();
         return 1;
@@ -101,37 +105,41 @@ int main(int argc, char* argv[])
     // Вывод информации о сервере
     sockaddr_in serverInfo;
     int serverInfoSize = sizeof(serverInfo);
-    if (getsockname(listenSocket, (sockaddr*)&serverInfo, &serverInfoSize) == 0) {
+    if (getsockname(listenSocket, (sockaddr*)&serverInfo, &serverInfoSize) == 0) 
+    {
         char ipStr[16]; // Достаточно для IPv4 "xxx.xxx.xxx.xxx\0"
         inet_ntoa(serverInfo.sin_addr);
-        strcpy_s(ipStr, inet_ntoa(serverInfo.sin_addr)); // inet_ntoa не потокобезопасна
-        std::cout << "Сервер запущен на IP: " << ipStr << ", порт: " << ntohs(serverInfo.sin_port) << std::endl;
+        strcpy_s(ipStr, inet_ntoa(serverInfo.sin_addr));
+        cout << "Сервер запущен на IP: " << ipStr << ", порт: " << ntohs(serverInfo.sin_port) <<endl;
     }
-    else {
-        std::cerr << "Не удалось получить информацию о сокете сервера: " << WSAGetLastError() << std::endl;
+    else 
+    {
+        cerr << "Не удалось получить информацию о сокете сервера: " << WSAGetLastError() << endl;
     }
 
-    if (listen(listenSocket, SOMAXCONN) == SOCKET_ERROR) {
-        std::cerr << "listen failed: " << WSAGetLastError() << std::endl;
+    if (listen(listenSocket, SOMAXCONN) == SOCKET_ERROR) 
+    {
+        cerr << "listen failed: " << WSAGetLastError() << endl;
         closesocket(listenSocket);
         WSACleanup();
         return 1;
     }
 
-    std::cout << "Ожидание подключений..." << std::endl;
+    cout << "Ожидание подключений..." << endl;
 
     while (true)
     {
         SOCKET clientSocket = accept(listenSocket, NULL, NULL);
-        if (clientSocket == INVALID_SOCKET) {
-            std::cerr << "accept failed: " << WSAGetLastError() << std::endl;
+        if (clientSocket == INVALID_SOCKET) 
+        {
+            cerr << "accept failed: " << WSAGetLastError() <<endl;
             continue;
         }
 
         int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
 
-        //std::cout << "Получено " << bytesReceived << " байт от клиента: " << buffer << std::endl;
-        std::string response = buffer;
+        //cout << "Получено " << bytesReceived << " байт от клиента: " << buffer << endl;
+        string response = buffer;
         send(clientSocket, response.c_str(), response.length(), 0);
 
         memset(buffer, 0, sizeof(buffer)); // Очистка буфера
