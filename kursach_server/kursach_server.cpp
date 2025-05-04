@@ -126,23 +126,27 @@ int main(int argc, char* argv[])
     }
 
     cout << "Ожидание подключений..." << endl;
-
     while (true)
     {
         SOCKET clientSocket = accept(listenSocket, NULL, NULL);
-        if (clientSocket == INVALID_SOCKET) 
+        if (clientSocket == INVALID_SOCKET)
         {
-            cerr << "accept failed: " << WSAGetLastError() <<endl;
+            cerr << "accept failed: " << WSAGetLastError() << endl;
             continue;
         }
 
-        int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
+        while (true)
+        {
+            int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
 
-        //cout << "Получено " << bytesReceived << " байт от клиента: " << buffer << endl;
-        string response = buffer;
-        send(clientSocket, response.c_str(), response.length(), 0);
+            if (bytesReceived <= 0)
+                break;
 
-        memset(buffer, 0, sizeof(buffer)); // Очистка буфера
+            string response = buffer;
+            send(clientSocket, response.c_str(), response.length(), 0);
+            cout << "Получено " << bytesReceived << " байт от клиента: " << buffer << endl;
+            memset(buffer, 0, sizeof(buffer)); // Очистка буфера
+        }
         closesocket(clientSocket);
     }
 
