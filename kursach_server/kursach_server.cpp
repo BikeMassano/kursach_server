@@ -81,7 +81,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    SOCKET listenSocket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    SOCKET listenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (listenSocket == INVALID_SOCKET) 
     {
         cerr << "socket failed: " << WSAGetLastError() << endl;
