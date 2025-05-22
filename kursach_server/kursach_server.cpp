@@ -57,14 +57,16 @@ int main(int argc, char* argv[])
 {
     setlocale(LC_ALL, "rus");
 
+    // Проверка позиционных параметров
     if (argc != 2)
     {
         cerr << "Использование: server <имя_хоста>\n";
         return 1;
     }
 
+    // Строка для хранения адреса хоста
     const char* hostname = argv[1];
-
+    // Проверка инициализации Windows Socket DLL
     if (WinSockInit() != 0)
     {
         return 1;
@@ -81,6 +83,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    // Создание сокета
     SOCKET listenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (listenSocket == INVALID_SOCKET) 
     {
@@ -89,11 +92,13 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    // Заполнение структуры sockaddr_in
     sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_addr.s_addr = *(unsigned long*)host->h_addr_list[0];
     serverAddr.sin_port = htons(80);
 
+    // Привязка адреса к порту
     if (bind(listenSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) 
     {
         cerr << "bind failed: " << WSAGetLastError() << endl;
@@ -117,17 +122,20 @@ int main(int argc, char* argv[])
         cerr << "Не удалось получить информацию о сокете сервера: " << WSAGetLastError() << endl;
     }
 
-    if (listen(listenSocket, SOMAXCONN) == SOCKET_ERROR) 
-    {
-        cerr << "listen failed: " << WSAGetLastError() << endl;
-        closesocket(listenSocket);
-        WSACleanup();
-        return 1;
-    }
-
     cout << "Ожидание подключений..." << endl;
+  
     while (true)
     {
+        // Прослушка входящих соединений на указанном порту 
+        if (listen(listenSocket, SOMAXCONN) == SOCKET_ERROR)
+        {
+            cerr << "listen failed: " << WSAGetLastError() << endl;
+            closesocket(listenSocket);
+            WSACleanup();
+            return 1;
+        }
+
+        // Разрешение входящей попытки подключения к сокету
         SOCKET clientSocket = accept(listenSocket, NULL, NULL);
         if (clientSocket == INVALID_SOCKET)
         {
@@ -135,21 +143,22 @@ int main(int argc, char* argv[])
             continue;
         }
 
-        while (true)
-        {
-            int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
+        // Получение данных, занесение их в буфер
+        int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
 
-            if (bytesReceived <= 0)
-                break;
+        if (bytesReceived <= 0)
+            break;
 
-            string response = buffer;
-            send(clientSocket, response.c_str(), response.length(), 0);
-            cout << "Получено " << bytesReceived << " байт от клиента: " << buffer << endl;
-            memset(buffer, 0, sizeof(buffer)); // Очистка буфера
-        }
+        // Формирование и отправка ответа клиенту
+        string response = buffer;
+        send(clientSocket, response.c_str(), response.length(), 0);
+        cout << "Получено " << bytesReceived << " байт от клиента: " << buffer << endl;
+        memset(buffer, 0, sizeof(buffer)); // Очистка буфера
+        // Закрыть сокет клиента
         closesocket(clientSocket);
+        
     }
-
+    // Закрыть сокет, освободить ресурсы
     closesocket(listenSocket);
     WSACleanup();
     return 0;
